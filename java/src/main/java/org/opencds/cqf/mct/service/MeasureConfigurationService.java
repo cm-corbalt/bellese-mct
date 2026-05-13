@@ -11,36 +11,35 @@ import org.opencds.cqf.mct.util.BundleHelper;
  */
 public class MeasureConfigurationService {
 
-   private final Bundle measuresBundle;
+    private final Bundle measuresBundle;
 
-   /**
-    * Instantiates a new Measure Configuration Service.
-    */
-   public MeasureConfigurationService() {
-      measuresBundle = SpringContext.getBean("measuresBundle", Bundle.class);
-   }
+    /**
+     * Instantiates a new Measure Configuration Service.
+     */
+    public MeasureConfigurationService() {
+        measuresBundle = SpringContext.getBean("measuresBundle", Bundle.class);
+    }
 
-   /**
-    * The $list-measures operation logic.
-    *
-    * @see MeasureConfigurationAPI#listMeasures()
-    * @return the configured measures in a bundle
-    */
-   public Bundle listMeasures() {
-      Bundle measures = new Bundle().setType(Bundle.BundleType.COLLECTION);
-      BundleHelper.listResources(measuresBundle, Measure.class)
-              .forEach(x -> measures.addEntry().setResource(x));
-      return measures;
-   }
+    /**
+     * The $list-measures operation logic.
+     *
+     * @see MeasureConfigurationAPI#listMeasures()
+     * @return the configured measures in a bundle
+     */
+    public Bundle listMeasures() {
+        Bundle measures = new Bundle().setType(Bundle.BundleType.COLLECTION);
+        BundleHelper.listResources(measuresBundle, Measure.class)
+                .forEach(x -> measures.addEntry().setResource(x));
+        return measures;
+    }
 
-   /**
-    * Gets the specified <a href="http://hl7.org/fhir/measure.html">Measure</a> resource.
-    *
-    * @param measureId the measure id
-    * @return the measure or null if the measure is not present
-    */
-   public Measure getMeasure(String measureId) {
-      return BundleHelper.findById(measuresBundle, Measure.class, measureId);
-   }
-
+    /**
+     * Gets the specified <a href="http://hl7.org/fhir/measure.html">Measure</a> resource.
+     *
+     * @param measureId the measure id
+     * @return the measure or null if the measure is not present
+     */
+    public Measure getMeasure(String measureId) {
+        return BundleHelper.findById(measuresBundle, Measure.class, measureId);
+    }
 }

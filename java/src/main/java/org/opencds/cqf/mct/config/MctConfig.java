@@ -6,6 +6,12 @@ import ca.uhn.fhir.context.support.DefaultProfileValidationSupport;
 import ca.uhn.fhir.repository.IRepository;
 import ca.uhn.fhir.util.ClasspathUtil;
 import ca.uhn.fhir.validation.FhirValidator;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Objects;
 import org.cqframework.cql.cql2elm.LibrarySourceProvider;
 import org.hl7.fhir.common.hapi.validation.support.CachingValidationSupport;
 import org.hl7.fhir.common.hapi.validation.support.CommonCodeSystemsTerminologyService;
@@ -28,194 +34,212 @@ import org.opencds.cqf.fhir.cr.measure.r4.R4MeasureProcessor;
 import org.opencds.cqf.fhir.utility.adapter.IAdapterFactory;
 import org.opencds.cqf.fhir.utility.repository.InMemoryFhirRepository;
 import org.opencds.cqf.mct.service.FacilityRegistrationService;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.opencds.cqf.mct.service.MeasureConfigurationService;
 import org.opencds.cqf.mct.service.PatientSelectorService;
 import org.opencds.cqf.mct.service.ReceivingSystemConfigurationService;
 import org.opencds.cqf.mct.validation.MctNpmPackageValidationSupport;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.Map;
-import java.util.Objects;
-
 @Configuration
-@Import({ MctProperties.class })
+@Import({MctProperties.class})
 public class MctConfig {
 
-   @Value("${mct.facilities-bundle-path}")
-   private String facilitiesBundlePath;
+    @Value("${mct.facilities-bundle-path}")
+    private String facilitiesBundlePath;
 
-   @Bean
-   public ModelResolver modelResolver() {
-      return new R4FhirModelResolver();
-   }
+    @Bean
+    public ModelResolver modelResolver() {
+        return new R4FhirModelResolver();
+    }
 
-   @Bean
-   public DataProvider dataProvider(FhirContext fhirContext, ModelResolver modelResolver) {
-      RestFhirRetrieveProvider retrieveProvider = new RestFhirRetrieveProvider(
-              new SearchParameterResolver(fhirContext), modelResolver,
-              fhirContext.newRestfulGenericClient("http://localhost:8080/fhir"));
-      return new CompositeDataProvider(modelResolver, retrieveProvider);
-   }
+    @Bean
+    public DataProvider dataProvider(FhirContext fhirContext, ModelResolver modelResolver) {
+        RestFhirRetrieveProvider retrieveProvider = new RestFhirRetrieveProvider(
+                new SearchParameterResolver(fhirContext),
+                modelResolver,
+                fhirContext.newRestfulGenericClient("http://localhost:8080/fhir"));
+        return new CompositeDataProvider(modelResolver, retrieveProvider);
+    }
 
-   @Bean
-   public IRepository contentRepository(FhirContext fhirContext, @Qualifier("measuresBundle") Bundle measuresBundle, @Qualifier("terminologyBundle") Bundle terminologyBundle) {
-      Bundle combined = new Bundle().setType(Bundle.BundleType.COLLECTION);
-      measuresBundle.getEntry().forEach(e -> combined.addEntry(e.copy()));
-      terminologyBundle.getEntry().forEach(e -> combined.addEntry(e.copy()));
-      return new InMemoryFhirRepository(fhirContext, combined);
-   }
+    @Bean
+    public IRepository contentRepository(
+            FhirContext fhirContext,
+            @Qualifier("measuresBundle") Bundle measuresBundle,
+            @Qualifier("terminologyBundle") Bundle terminologyBundle) {
+        Bundle combined = new Bundle().setType(Bundle.BundleType.COLLECTION);
+        measuresBundle.getEntry().forEach(e -> combined.addEntry(e.copy()));
+        terminologyBundle.getEntry().forEach(e -> combined.addEntry(e.copy()));
+        return new InMemoryFhirRepository(fhirContext, combined);
+    }
 
-   @Bean
-   public MeasureEvaluationOptions measureEvaluationOptions() {
-      return MeasureEvaluationOptions.defaultOptions();
-   }
+    @Bean
+    public MeasureEvaluationOptions measureEvaluationOptions() {
+        return MeasureEvaluationOptions.defaultOptions();
+    }
 
-   @Bean
-   public R4MeasureProcessor measureProcessor(IRepository contentRepository, MeasureEvaluationOptions measureEvaluationOptions) {
-      return new R4MeasureProcessor(contentRepository, measureEvaluationOptions);
-   }
+    @Bean
+    public R4MeasureProcessor measureProcessor(
+            IRepository contentRepository, MeasureEvaluationOptions measureEvaluationOptions) {
+        return new R4MeasureProcessor(contentRepository, measureEvaluationOptions);
+    }
 
-   @Bean
-   public IAdapterFactory adapterFactory(FhirContext fhirContext) {
-      return IAdapterFactory.forFhirContext(fhirContext);
-   }
+    @Bean
+    public IAdapterFactory adapterFactory(FhirContext fhirContext) {
+        return IAdapterFactory.forFhirContext(fhirContext);
+    }
 
-   @Bean
-   public LibraryVersionSelector libraryVersionSelector(IAdapterFactory adapterFactory) {
-      return new LibraryVersionSelector(adapterFactory);
-   }
+    @Bean
+    public LibraryVersionSelector libraryVersionSelector(IAdapterFactory adapterFactory) {
+        return new LibraryVersionSelector(adapterFactory);
+    }
 
-   @Bean
-   public LibrarySourceProvider repositoryFhirLibrarySourceProvider(
-           IRepository contentRepository, IAdapterFactory adapterFactory, LibraryVersionSelector libraryVersionSelector) {
-      return new RepositoryFhirLibrarySourceProvider(contentRepository, adapterFactory, libraryVersionSelector);
-   }
+    @Bean
+    public LibrarySourceProvider repositoryFhirLibrarySourceProvider(
+            IRepository contentRepository,
+            IAdapterFactory adapterFactory,
+            LibraryVersionSelector libraryVersionSelector) {
+        return new RepositoryFhirLibrarySourceProvider(contentRepository, adapterFactory, libraryVersionSelector);
+    }
 
-   @Bean
-   public MctNpmPackageValidationSupport mctNpmPackageValidationSupport(
-           FhirContext fhirContext, MctProperties properties) throws IOException {
-      MctNpmPackageValidationSupport validationSupport = new MctNpmPackageValidationSupport(fhirContext);
-      NpmPackage basePackage;
-      for (Map.Entry<String, MctProperties.ImplementationGuide> igs : properties.getImplementationGuides().entrySet()) {
-         if (igs.getValue().getUrl() != null) {
-            basePackage = NpmPackage.fromUrl(igs.getValue().getUrl());
-         }
-         else if (properties.getPackageServerUrl() == null) {
-            throw new ConfigurationException("The package_server_url property must be present if the implementationguides url property is absent");
-         }
-         else if (igs.getValue().getName() != null && igs.getValue().getVersion() != null) {
-            basePackage = NpmPackage.fromUrl(properties.getPackageServerUrl() + "/" + igs.getValue().getName() + "/" + igs.getValue().getVersion());
-         }
-         else if (igs.getValue().getName() != null) {
-            basePackage = NpmPackage.fromUrl(properties.getPackageServerUrl() + "/" + igs.getValue().getName());
-         }
-         else {
-            throw new ConfigurationException("The implementationguides property must include either a url or a name with an optional version");
-         }
-         validationSupport.loadPackage(basePackage);
-         if (properties.getInstallTransitiveIgDependencies()) {
-            for (String dependency : basePackage.dependencies()) {
-               if (properties.getPackageServerUrl() == null) {
-                  throw new ConfigurationException("The package_server_url property must be present to resolve implementationguides dependencies");
-               }
-
-               validationSupport.loadPackage(NpmPackage.fromUrl(properties.getPackageServerUrl() + "/" + dependency.replace("#", "/")));
+    @Bean
+    public MctNpmPackageValidationSupport mctNpmPackageValidationSupport(
+            FhirContext fhirContext, MctProperties properties) throws IOException {
+        MctNpmPackageValidationSupport validationSupport = new MctNpmPackageValidationSupport(fhirContext);
+        NpmPackage basePackage;
+        for (Map.Entry<String, MctProperties.ImplementationGuide> igs :
+                properties.getImplementationGuides().entrySet()) {
+            if (igs.getValue().getUrl() != null) {
+                basePackage = NpmPackage.fromUrl(igs.getValue().getUrl());
+            } else if (properties.getPackageServerUrl() == null) {
+                throw new ConfigurationException(
+                        "The package_server_url property must be present if the implementationguides url property is absent");
+            } else if (igs.getValue().getName() != null && igs.getValue().getVersion() != null) {
+                basePackage = NpmPackage.fromUrl(properties.getPackageServerUrl() + "/"
+                        + igs.getValue().getName() + "/" + igs.getValue().getVersion());
+            } else if (igs.getValue().getName() != null) {
+                basePackage = NpmPackage.fromUrl(
+                        properties.getPackageServerUrl() + "/" + igs.getValue().getName());
+            } else {
+                throw new ConfigurationException(
+                        "The implementationguides property must include either a url or a name with an optional version");
             }
-         }
-      }
+            validationSupport.loadPackage(basePackage);
+            if (properties.getInstallTransitiveIgDependencies()) {
+                for (String dependency : basePackage.dependencies()) {
+                    if (properties.getPackageServerUrl() == null) {
+                        throw new ConfigurationException(
+                                "The package_server_url property must be present to resolve implementationguides dependencies");
+                    }
 
-      return validationSupport;
-   }
+                    validationSupport.loadPackage(
+                            NpmPackage.fromUrl(properties.getPackageServerUrl() + "/" + dependency.replace("#", "/")));
+                }
+            }
+        }
 
-   @Bean
-   public ValidationSupportChain validationSupportChain(
-           MctNpmPackageValidationSupport mctNpmPackageValidationSupport, FhirContext fhirContext) {
-      return new ValidationSupportChain(
-              mctNpmPackageValidationSupport,
-              new CommonCodeSystemsTerminologyService(fhirContext),
-              new DefaultProfileValidationSupport(fhirContext),
-              new InMemoryTerminologyServerValidationSupport(fhirContext),
-              new SnapshotGeneratingValidationSupport(fhirContext)
-      );
-   }
+        return validationSupport;
+    }
 
-   @Bean
-   public FhirValidator fhirValidator(FhirContext fhirContext, ValidationSupportChain validationSupportChain) {
-      CachingValidationSupport validationSupport = new CachingValidationSupport(validationSupportChain);
-      FhirValidator validator = fhirContext.newValidator();
-      FhirInstanceValidator instanceValidator = new FhirInstanceValidator(validationSupport);
-      validator.registerValidatorModule(instanceValidator);
-      return validator;
-   }
+    @Bean
+    public ValidationSupportChain validationSupportChain(
+            MctNpmPackageValidationSupport mctNpmPackageValidationSupport, FhirContext fhirContext) {
+        return new ValidationSupportChain(
+                mctNpmPackageValidationSupport,
+                new CommonCodeSystemsTerminologyService(fhirContext),
+                new DefaultProfileValidationSupport(fhirContext),
+                new InMemoryTerminologyServerValidationSupport(fhirContext),
+                new SnapshotGeneratingValidationSupport(fhirContext));
+    }
 
-   @Bean
-   public FacilityRegistrationService facilityRegistrationService() {
-      return new FacilityRegistrationService(facilitiesBundlePath);
-   }
+    @Bean
+    public FhirValidator fhirValidator(FhirContext fhirContext, ValidationSupportChain validationSupportChain) {
+        CachingValidationSupport validationSupport = new CachingValidationSupport(validationSupportChain);
+        FhirValidator validator = fhirContext.newValidator();
+        FhirInstanceValidator instanceValidator = new FhirInstanceValidator(validationSupport);
+        validator.registerValidatorModule(instanceValidator);
+        return validator;
+    }
 
-   @Bean
-   public MeasureConfigurationService measureConfigurationService() {
-      return new MeasureConfigurationService();
-   }
+    @Bean
+    public FacilityRegistrationService facilityRegistrationService() {
+        return new FacilityRegistrationService(facilitiesBundlePath);
+    }
 
-   @Bean
-   public ReceivingSystemConfigurationService receivingSystemConfigurationService() {
-      return new ReceivingSystemConfigurationService();
-   }
+    @Bean
+    public MeasureConfigurationService measureConfigurationService() {
+        return new MeasureConfigurationService();
+    }
 
-   @Bean
-   public PatientSelectorService patientSelectorService() {
-      return new PatientSelectorService();
-   }
+    @Bean
+    public ReceivingSystemConfigurationService receivingSystemConfigurationService() {
+        return new ReceivingSystemConfigurationService();
+    }
 
-   @Bean
-   public String pathToConfigurationResources() {
-      return Objects.requireNonNull(ClasspathUtil.class.getClassLoader().getResource("configuration")).getPath();
-   }
+    @Bean
+    public PatientSelectorService patientSelectorService() {
+        return new PatientSelectorService();
+    }
 
-   @Bean
-   public Bundle receivingSystemsBundle(FhirContext fhirContext) {
-      return fhirContext.newJsonParser().parseResource(Bundle.class,
-              ClasspathUtil.loadResourceAsStream("classpath:configuration/receiving-system/receiving-system-bundle.json"));
-   }
+    @Bean
+    public String pathToConfigurationResources() {
+        return Objects.requireNonNull(ClasspathUtil.class.getClassLoader().getResource("configuration"))
+                .getPath();
+    }
 
-   /**
-    * Loads the facilities bundle, preferring the external file at {@code mct.facilities-bundle-path}
-    * if it exists. This allows user-made changes (add/edit/delete facilities) to survive container
-    * restarts via a Docker volume mount. Falls back to the classpath default on first run or after
-    * a volume reset.
-    */
-   @Bean
-   public Bundle facilitiesBundle(FhirContext fhirContext) {
-      File externalFile = new File(facilitiesBundlePath);
-      if (externalFile.exists()) {
-         try {
-            return fhirContext.newJsonParser().parseResource(Bundle.class, new FileInputStream(externalFile));
-         } catch (FileNotFoundException e) {
-            // fall through to classpath default
-         }
-      }
-      return fhirContext.newJsonParser().parseResource(Bundle.class,
-              ClasspathUtil.loadResourceAsStream("classpath:configuration/facilities/facilities-bundle.json"));
-   }
+    @Bean
+    public Bundle receivingSystemsBundle(FhirContext fhirContext) {
+        return fhirContext
+                .newJsonParser()
+                .parseResource(
+                        Bundle.class,
+                        ClasspathUtil.loadResourceAsStream(
+                                "classpath:configuration/receiving-system/receiving-system-bundle.json"));
+    }
 
-   @Bean
-   public Bundle measuresBundle(FhirContext fhirContext) {
-      return fhirContext.newJsonParser().parseResource(Bundle.class,
-              ClasspathUtil.loadResourceAsStream("classpath:configuration/measures/measures-bundle.json"));
-   }
+    /**
+     * Loads the facilities bundle, preferring the external file at {@code mct.facilities-bundle-path}
+     * if it exists. This allows user-made changes (add/edit/delete facilities) to survive container
+     * restarts via a Docker volume mount. Falls back to the classpath default on first run or after
+     * a volume reset.
+     */
+    @Bean
+    public Bundle facilitiesBundle(FhirContext fhirContext) {
+        File externalFile = new File(facilitiesBundlePath);
+        if (externalFile.exists()) {
+            try {
+                return fhirContext.newJsonParser().parseResource(Bundle.class, new FileInputStream(externalFile));
+            } catch (FileNotFoundException e) {
+                // fall through to classpath default
+            }
+        }
+        return fhirContext
+                .newJsonParser()
+                .parseResource(
+                        Bundle.class,
+                        ClasspathUtil.loadResourceAsStream(
+                                "classpath:configuration/facilities/facilities-bundle.json"));
+    }
 
-   @Bean
-   public Bundle terminologyBundle(FhirContext fhirContext) {
-      return fhirContext.newJsonParser().parseResource(Bundle.class,
-              ClasspathUtil.loadResourceAsStream("classpath:configuration/terminology/terminology-bundle.json"));
-   }
+    @Bean
+    public Bundle measuresBundle(FhirContext fhirContext) {
+        return fhirContext
+                .newJsonParser()
+                .parseResource(
+                        Bundle.class,
+                        ClasspathUtil.loadResourceAsStream("classpath:configuration/measures/measures-bundle.json"));
+    }
+
+    @Bean
+    public Bundle terminologyBundle(FhirContext fhirContext) {
+        return fhirContext
+                .newJsonParser()
+                .parseResource(
+                        Bundle.class,
+                        ClasspathUtil.loadResourceAsStream(
+                                "classpath:configuration/terminology/terminology-bundle.json"));
+    }
 }

@@ -10,25 +10,27 @@ import org.hl7.fhir.r4.model.Type;
  */
 public final class ParametersUtil {
 
-   private ParametersUtil() {}
+    private ParametersUtil() {}
 
-   public static Parameters parameters(Parameters.ParametersParameterComponent... parts) {
-      Parameters parameters = new Parameters();
-      for (Parameters.ParametersParameterComponent part : parts) {
-         parameters.addParameter(part);
-      }
-      return parameters;
-   }
+    public static Parameters parameters(Parameters.ParametersParameterComponent... parts) {
+        Parameters parameters = new Parameters();
+        for (Parameters.ParametersParameterComponent part : parts) {
+            parameters.addParameter(part);
+        }
+        return parameters;
+    }
 
-   public static Parameters.ParametersParameterComponent part(String name, Resource resource) {
-      return new Parameters.ParametersParameterComponent().setName(name).setResource(resource);
-   }
+    public static Parameters.ParametersParameterComponent part(String name, Resource resource) {
+        return new Parameters.ParametersParameterComponent().setName(name).setResource(resource);
+    }
 
-   public static Parameters.ParametersParameterComponent part(String name, Type value) {
-      return new Parameters.ParametersParameterComponent().setName(name).setValue(value);
-   }
+    public static Parameters.ParametersParameterComponent part(String name, Type value) {
+        return new Parameters.ParametersParameterComponent().setName(name).setValue(value);
+    }
 
-   public static Parameters.ParametersParameterComponent part(String name, String value) {
-      return new Parameters.ParametersParameterComponent().setName(name).setValue(new org.hl7.fhir.r4.model.StringType(value));
-   }
+    public static Parameters.ParametersParameterComponent part(String name, String value) {
+        return new Parameters.ParametersParameterComponent()
+                .setName(name)
+                .setValue(new org.hl7.fhir.r4.model.StringType(value));
+    }
 }

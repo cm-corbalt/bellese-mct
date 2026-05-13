@@ -11,23 +11,22 @@ import org.opencds.cqf.mct.service.ReceivingSystemConfigurationService;
  */
 public class ReceivingSystemConfigurationAPI {
 
-   private final ReceivingSystemConfigurationService receivingSystemConfigurationService;
+    private final ReceivingSystemConfigurationService receivingSystemConfigurationService;
 
-   /**
-    * Instantiates a new Receiving System Configuration API.
-    */
-   public ReceivingSystemConfigurationAPI() {
-      receivingSystemConfigurationService = SpringContext.getBean(ReceivingSystemConfigurationService.class);
-   }
+    /**
+     * Instantiates a new Receiving System Configuration API.
+     */
+    public ReceivingSystemConfigurationAPI() {
+        receivingSystemConfigurationService = SpringContext.getBean(ReceivingSystemConfigurationService.class);
+    }
 
-   /**
-    * The $list-receiving-systems operation.
-    *
-    * @return a bundle of receiving system <a href="http://hl7.org/fhir/endpoint.html">Endpoint</a> resources
-    */
-   @Operation(name = MctConstants.LIST_REC_SYSTEM_OPERATION_NAME, idempotent = true)
-   public Bundle listReceivingSystems() {
-      return receivingSystemConfigurationService.listReceivingSystems();
-   }
-
+    /**
+     * The $list-receiving-systems operation.
+     *
+     * @return a bundle of receiving system <a href="http://hl7.org/fhir/endpoint.html">Endpoint</a> resources
+     */
+    @Operation(name = MctConstants.LIST_REC_SYSTEM_OPERATION_NAME, idempotent = true)
+    public Bundle listReceivingSystems() {
+        return receivingSystemConfigurationService.listReceivingSystems();
+    }
 }

@@ -10,25 +10,24 @@ import org.opencds.cqf.mct.util.BundleHelper;
  */
 public class ReceivingSystemConfigurationService {
 
-   private final Bundle receivingSystemsBundle;
+    private final Bundle receivingSystemsBundle;
 
-   /**
-    * Instantiates a new Receiving System Configuration Service.
-    */
-   public ReceivingSystemConfigurationService() {
-      receivingSystemsBundle = SpringContext.getBean("receivingSystemsBundle", Bundle.class);
-   }
+    /**
+     * Instantiates a new Receiving System Configuration Service.
+     */
+    public ReceivingSystemConfigurationService() {
+        receivingSystemsBundle = SpringContext.getBean("receivingSystemsBundle", Bundle.class);
+    }
 
-   /**
-    * The $list-receiving-systems operation logic.
-    *
-    * @return a bundle of receiving system <a href="http://hl7.org/fhir/endpoint.html">Endpoint</a> resources
-    */
-   public Bundle listReceivingSystems() {
-      Bundle endpoints = new Bundle().setType(Bundle.BundleType.COLLECTION);
-      BundleHelper.listResources(receivingSystemsBundle, Endpoint.class)
-              .forEach(x -> endpoints.addEntry().setResource(x));
-      return endpoints;
-   }
-
+    /**
+     * The $list-receiving-systems operation logic.
+     *
+     * @return a bundle of receiving system <a href="http://hl7.org/fhir/endpoint.html">Endpoint</a> resources
+     */
+    public Bundle listReceivingSystems() {
+        Bundle endpoints = new Bundle().setType(Bundle.BundleType.COLLECTION);
+        BundleHelper.listResources(receivingSystemsBundle, Endpoint.class)
+                .forEach(x -> endpoints.addEntry().setResource(x));
+        return endpoints;
+    }
 }
