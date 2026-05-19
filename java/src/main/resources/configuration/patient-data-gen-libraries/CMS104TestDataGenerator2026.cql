@@ -3,22 +3,41 @@ library CMS104TestDataGenerator2026 version '1.0.0'
 using FHIR version '4.0.1'
 
 parameter MeasurementPeriod default Interval[@2026-01-01T00:00:00.000Z, @2027-01-01T00:00:00.000Z)
-parameter NumberOfTests default 200
 parameter MeasureId default 'CMS104'
-
-define NumberOfTestCases:
-    (expand { Interval[ToQuantity(0), ToQuantity(NumberOfTests)] } per ToQuantity(1)) exapandResult
-        return Truncate((start of exapandResult).value)
+parameter NumberOfTests default 200
+parameter NumeratorTestCaseShare default 0.6
+parameter NumberOfNonNumeratorScenarios default 8
 
 define function GetNumberOfTestCasesList(count Integer):
-    (expand { Interval[ToQuantity(0), ToQuantity(count)] } per ToQuantity(1)) exapandResult
-        return Truncate((start of exapandResult).value)
+    if count <= 0 then ({ 0 }) emptyResult
+        where false
+        return emptyResult
+    else (expand { Interval[ToQuantity(0), ToQuantity(count - 1)] } per ToQuantity(1)) expandResult
+        return Truncate((start of expandResult).value)
+
+define NumberOfTestCases:
+    GetNumberOfTestCasesList(NumberOfTests)
+
+define NumeratorTestCaseCount:
+    Truncate(Round(Length(NumberOfTestCases) * NumeratorTestCaseShare))
 
 define InNumeratorCount:
-    GetNumberOfTestCasesList(Truncate(Round(Length(NumberOfTestCases) * 0.6)))
+    GetNumberOfTestCasesList(NumeratorTestCaseCount)
 
-define OtherPopulationsCount:
-    GetNumberOfTestCasesList(Truncate(Round(Length(NumberOfTestCases) * 0.1)))
+define OtherTestCaseCount:
+    Length(NumberOfTestCases) - NumeratorTestCaseCount
+
+define OtherPopulationBaseCount:
+    Truncate(OtherTestCaseCount / NumberOfNonNumeratorScenarios)
+
+define OtherPopulationRemainder:
+    OtherTestCaseCount - (OtherPopulationBaseCount * NumberOfNonNumeratorScenarios)
+
+define function OtherPopulationCountForScenario(scenarioIndex Integer):
+    OtherPopulationBaseCount + (if scenarioIndex < OtherPopulationRemainder then 1 else 0)
+
+define function OtherPopulationCasesForScenario(scenarioIndex Integer):
+    GetNumberOfTestCasesList(OtherPopulationCountForScenario(scenarioIndex))
 
 define function BuildTestCaseId(population String, count Integer):
     MeasureId + '-' + ToString(NumberOfTests) + 'N-' + population + '-' + ToString(count)
@@ -232,18 +251,18 @@ define function BuildRandomTestCase(TestCaseId String, count Integer, PatientRef
                 }
 
 define BuildIneligibleTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(0)) C
         let TestCaseId: BuildTestCaseId('ineligible', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(0) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient }
 
 define BuildInInitialPopulationTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(1)) C
         let TestCaseId: BuildTestCaseId('in-initial-population', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(1) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheCondition } union { Result.TheEncounter } union { Result.TheCoverage } union { Result.TheClaim }
 
@@ -256,50 +275,50 @@ define BuildInNumeratorTestCases:
             return { Result.ThePatient } union { Result.TheCondition } union { Result.TheEncounter } union { Result.TheCoverage } union { Result.TheClaim } union { Result.TheMedicationRequest }
 
 define BuildDenominatorExclusionDischargeTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(2)) C
         let TestCaseId: BuildTestCaseId('denex-discharge', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(2) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, true)
             return { Result.ThePatient } union { Result.TheCondition } union { Result.TheEncounter } union { Result.TheCoverage } union { Result.TheClaim }
 
 define BuildDenominatorExclusionComfortServiceRequestTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(3)) C
         let TestCaseId: BuildTestCaseId('denex-cm-sr', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(3) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheCondition } union { Result.TheEncounter } union { Result.TheCoverage } union { Result.TheClaim } union { Result.TheComfortMeasureServiceRequest }
 
 define BuildDenominatorExclusionComfortProcedureTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(4)) C
         let TestCaseId: BuildTestCaseId('denex-cm-proc', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(4) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheCondition } union { Result.TheEncounter } union { Result.TheCoverage } union { Result.TheClaim } union { Result.TheComfortMeasureProcedure }
 
 define BuildDenominatorExceptionMedicationNotRequestedTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(5)) C
         let TestCaseId: BuildTestCaseId('denexc-mnr', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(5) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheCondition } union { Result.TheEncounter } union { Result.TheCoverage } union { Result.TheClaim } union { Result.TheMedicationNotRequested }
 
 define BuildDenominatorExceptionTaskRejectedTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(6)) C
         let TestCaseId: BuildTestCaseId('denexc-task', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(6) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheCondition } union { Result.TheEncounter } union { Result.TheCoverage } union { Result.TheClaim } union { Result.TheRejectedMedicationRequest } union { Result.TheTaskRejected }
 
 define BuildDenominatorExceptionPharmacologicalContraindicationTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(7)) C
         let TestCaseId: BuildTestCaseId('denexc-pharm', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(7) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheCondition } union { Result.TheEncounter } union { Result.TheCoverage } union { Result.TheClaim } union { Result.ThePharmacologicalContraindicationMedicationRequest }
 
