@@ -5,20 +5,49 @@ using FHIR version '4.0.1'
 parameter MeasurementPeriod default Interval[@2026-01-01T00:00:00.000Z, @2027-01-01T00:00:00.000Z)
 parameter NumberOfTests default 200
 parameter MeasureId default 'CMS122'
-
-define NumberOfTestCases:
-    (expand { Interval[ToQuantity(0), ToQuantity(NumberOfTests)] } per ToQuantity(1)) expandResult
-        return Truncate((start of expandResult).value)
+parameter NumeratorTestCaseShare default 0.5
+parameter NumberOfNumeratorScenarios default 3
+parameter NumberOfNonNumeratorScenarios default 5
 
 define function GetNumberOfTestCasesList(count Integer):
-    (expand { Interval[ToQuantity(0), ToQuantity(count)] } per ToQuantity(1)) expandResult
+    if count <= 0 then ({ 0 }) emptyResult
+        where false
+        return emptyResult
+    else (expand { Interval[ToQuantity(0), ToQuantity(count - 1)] } per ToQuantity(1)) expandResult
         return Truncate((start of expandResult).value)
 
-define InNumeratorCount:
-    GetNumberOfTestCasesList(Truncate(Round(Length(NumberOfTestCases) * 0.45)))
+define NumberOfTestCases:
+    GetNumberOfTestCasesList(NumberOfTests)
 
-define OtherPopulationsCount:
-    GetNumberOfTestCasesList(Truncate(Round(Length(NumberOfTestCases) * 0.1)))
+define NumeratorTestCaseCount:
+    Truncate(Round(Length(NumberOfTestCases) * NumeratorTestCaseShare))
+
+define NumeratorBaseCount:
+    Truncate(NumeratorTestCaseCount / NumberOfNumeratorScenarios)
+
+define NumeratorRemainder:
+    NumeratorTestCaseCount - (NumeratorBaseCount * NumberOfNumeratorScenarios)
+
+define function NumeratorCountForScenario(scenarioIndex Integer):
+    NumeratorBaseCount + (if scenarioIndex < NumeratorRemainder then 1 else 0)
+
+define function NumeratorCasesForScenario(scenarioIndex Integer):
+    GetNumberOfTestCasesList(NumeratorCountForScenario(scenarioIndex))
+
+define OtherTestCaseCount:
+    Length(NumberOfTestCases) - NumeratorTestCaseCount
+
+define OtherPopulationBaseCount:
+    Truncate(OtherTestCaseCount / NumberOfNonNumeratorScenarios)
+
+define OtherPopulationRemainder:
+    OtherTestCaseCount - (OtherPopulationBaseCount * NumberOfNonNumeratorScenarios)
+
+define function OtherPopulationCountForScenario(scenarioIndex Integer):
+    OtherPopulationBaseCount + (if scenarioIndex < OtherPopulationRemainder then 1 else 0)
+
+define function OtherPopulationCasesForScenario(scenarioIndex Integer):
+    GetNumberOfTestCasesList(OtherPopulationCountForScenario(scenarioIndex))
 
 define function BuildTestCaseId(population String, count Integer):
     MeasureId + '-' + ToString(NumberOfTests) + 'N-' + population + '-' + ToString(count)
@@ -172,67 +201,67 @@ define function BuildRandomTestCase(TestCaseId String, count Integer, PatientRef
                 }
 
 define BuildIneligibleTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(0)) C
         let TestCaseId: BuildTestCaseId('ineligible-underage', C),
-            PatientFirstName: if C <= (Last(OtherPopulationsCount) / 2) then RandomMaleFirstName else RandomFemaleFirstName,
+            PatientFirstName: if C <= (OtherPopulationCountForScenario(0) / 2) then RandomMaleFirstName else RandomFemaleFirstName,
             PatientLastName: RandomLastName,
-            PatientGender: if C <= (Last(OtherPopulationsCount) / 2) then 'male' else 'female',
+            PatientGender: if C <= (OtherPopulationCountForScenario(0) / 2) then 'male' else 'female',
             UnderagePatient: BuildPatient(TestCaseId, PatientFirstName, PatientLastName, PatientGender, Date(RandomNumberInRange(2010, 2015), RandomMonth, RandomDay), C)
             return { UnderagePatient }
 
 define BuildInInitialPopulationTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(1)) C
         let TestCaseId: BuildTestCaseId('denominator-controlled', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(1) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheDiabetesCondition } union { Result.TheQualifyingEncounter } union { Result.TheControlledHbA1cObservation }
 
 define BuildInNumeratorHighHbA1cTestCases:
-    InNumeratorCount C
+    (NumeratorCasesForScenario(0)) C
         let TestCaseId: BuildTestCaseId('numerator-high-hba1c', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(InNumeratorCount) / 2),
+            IsMale: C <= (NumeratorCountForScenario(0) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheDiabetesCondition } union { Result.TheQualifyingEncounter } union { Result.TheHighHbA1cObservation }
 
 define BuildInNumeratorNoAssessmentTestCases:
-    OtherPopulationsCount C
+    (NumeratorCasesForScenario(1)) C
         let TestCaseId: BuildTestCaseId('numerator-no-assessment', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (NumeratorCountForScenario(1) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheDiabetesCondition } union { Result.TheQualifyingEncounter }
 
 define BuildInNumeratorMissingResultTestCases:
-    OtherPopulationsCount C
+    (NumeratorCasesForScenario(2)) C
         let TestCaseId: BuildTestCaseId('numerator-missing-result', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (NumeratorCountForScenario(2) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheDiabetesCondition } union { Result.TheQualifyingEncounter } union { Result.TheMissingResultHbA1cObservation }
 
 define BuildDenominatorExclusionHospiceProcedureTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(2)) C
         let TestCaseId: BuildTestCaseId('denex-hospice-proc', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(2) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheDiabetesCondition } union { Result.TheQualifyingEncounter } union { Result.TheControlledHbA1cObservation } union { Result.TheHospiceProcedure }
 
 define BuildDenominatorExclusionNursingHomeTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(3)) C
         let TestCaseId: BuildTestCaseId('denex-nursing-home', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(3) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, true)
             return { Result.ThePatient } union { Result.TheDiabetesCondition } union { Result.TheQualifyingEncounter } union { Result.TheControlledHbA1cObservation } union { Result.TheNursingHomeObservation }
 
 define BuildDenominatorExclusionPalliativeProcedureTestCases:
-    OtherPopulationsCount C
+    (OtherPopulationCasesForScenario(4)) C
         let TestCaseId: BuildTestCaseId('denex-palliative-proc', C),
             PatientReference: 'Patient/' + TestCaseId,
-            IsMale: C <= (Last(OtherPopulationsCount) / 2),
+            IsMale: C <= (OtherPopulationCountForScenario(4) / 2),
             Result: BuildRandomTestCase(TestCaseId, C, PatientReference, IsMale, false)
             return { Result.ThePatient } union { Result.TheDiabetesCondition } union { Result.TheQualifyingEncounter } union { Result.TheControlledHbA1cObservation } union { Result.ThePalliativeCareProcedure }
 
