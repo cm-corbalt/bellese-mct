@@ -1,8 +1,12 @@
 package org.opencds.cqf.mct;
 
 import org.hl7.fhir.r4.model.Bundle;
+import org.hl7.fhir.r4.model.Encounter;
 import org.hl7.fhir.r4.model.Group;
+import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Patient;
+import org.hl7.fhir.r4.model.Practitioner;
+import org.hl7.fhir.r4.model.Procedure;
 import org.hl7.fhir.r4.model.Resource;
 import org.junit.jupiter.api.Test;
 import org.opencds.cqf.cql.engine.data.CompositeDataProvider;
@@ -16,6 +20,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PatientDataGeneratorServiceTest {
 
@@ -33,6 +38,25 @@ class PatientDataGeneratorServiceTest {
       }
    }
 
+   @Test
+   void cms125GeneratedPatientDataIncludesExpectedResources() throws IOException, NoSuchMethodException {
+      PatientDataGeneratorService service = new PatientDataGeneratorService(emptyDataProvider());
+      Integer requestedCount = 20;
+
+      Bundle result = service.generatePatientData(requestedCount, "CMS125");
+
+      assertEquals(requestedCount.longValue(), countResources(result, Patient.class));
+      assertTrue(countResources(result, Encounter.class) > 0);
+      assertTrue(countResources(result, Observation.class) > 0);
+      assertTrue(countResources(result, Procedure.class) > 0);
+      assertTrue(countResources(result, Practitioner.class) > 0);
+      assertGeneratedResourceIdsAreWithinFhirLimit(result);
+
+      Group generatedPatients = findGeneratedPatientsGroup(result);
+      assertNotNull(generatedPatients);
+      assertEquals(requestedCount.intValue(), generatedPatients.getQuantity());
+   }
+
    private long countResources(Bundle bundle, Class<? extends Resource> resourceType) {
       return bundle.getEntry().stream()
               .map(Bundle.BundleEntryComponent::getResource)
@@ -48,6 +72,16 @@ class PatientDataGeneratorServiceTest {
               .filter(group -> "Generated patients".equals(group.getName()))
               .findFirst()
               .orElse(null);
+   }
+
+   private void assertGeneratedResourceIdsAreWithinFhirLimit(Bundle bundle) {
+      bundle.getEntry().stream()
+              .map(Bundle.BundleEntryComponent::getResource)
+              .filter(resource -> resource.getIdElement() != null)
+              .forEach(resource -> {
+                 String id = resource.getIdElement().getIdPart();
+                 assertTrue(id.length() <= 64, () -> "Resource id exceeds 64 characters: " + id);
+              });
    }
 
    private DataProvider emptyDataProvider() {

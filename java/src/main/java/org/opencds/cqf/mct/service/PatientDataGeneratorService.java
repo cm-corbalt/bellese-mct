@@ -54,9 +54,11 @@ public class PatientDataGeneratorService {
    private static final Random randomNumberGenerator = new Random();
    private static final String measureRefCMS104 = "CMS104";
    private static final String measureRefCMS122 = "CMS122";
+   private static final String measureRefCMS125 = "CMS125";
    private static final Map<String, String> measureMap = Map.of(
       measureRefCMS104, "CMS104TestDataGenerator2026",
-      measureRefCMS122, "CMS122TestDataGenerator2026"
+      measureRefCMS122, "CMS122TestDataGenerator2026",
+      measureRefCMS125, "CMS125TestDataGenerator2026"
    );
 
    /**
@@ -160,7 +162,7 @@ public class PatientDataGeneratorService {
       String identifier = measureMap.get(measureRef);
       if (identifier == null) {
          throw new IllegalArgumentException(
-            String.format("Measure reference %s not supported. Supported measures: CMS104, CMS122", measureRef)
+            String.format("Measure reference %s not supported. Supported measures: CMS104, CMS122, CMS125", measureRef)
             );
       }
       return identifier;
