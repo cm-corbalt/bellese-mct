@@ -55,10 +55,12 @@ public class PatientDataGeneratorService {
    private static final String measureRefCMS104 = "CMS104";
    private static final String measureRefCMS122 = "CMS122";
    private static final String measureRefCMS125 = "CMS125";
+   private static final String measureRefCMS347 = "CMS347";
    private static final Map<String, String> measureMap = Map.of(
       measureRefCMS104, "CMS104TestDataGenerator2026",
       measureRefCMS122, "CMS122TestDataGenerator2026",
-      measureRefCMS125, "CMS125TestDataGenerator2026"
+      measureRefCMS125, "CMS125TestDataGenerator2026",
+      measureRefCMS347, "CMS347TestDataGenerator2026"
    );
 
    /**
@@ -162,7 +164,7 @@ public class PatientDataGeneratorService {
       String identifier = measureMap.get(measureRef);
       if (identifier == null) {
          throw new IllegalArgumentException(
-            String.format("Measure reference %s not supported. Supported measures: CMS104, CMS122, CMS125", measureRef)
+            String.format("Measure reference %s not supported. Supported measures: CMS104, CMS122, CMS125, CMS347", measureRef)
             );
       }
       return identifier;

@@ -1,8 +1,12 @@
 package org.opencds.cqf.mct;
 
 import org.hl7.fhir.r4.model.Bundle;
+import org.hl7.fhir.r4.model.AdverseEvent;
+import org.hl7.fhir.r4.model.AllergyIntolerance;
+import org.hl7.fhir.r4.model.Condition;
 import org.hl7.fhir.r4.model.Encounter;
 import org.hl7.fhir.r4.model.Group;
+import org.hl7.fhir.r4.model.MedicationRequest;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Practitioner;
@@ -49,6 +53,29 @@ class PatientDataGeneratorServiceTest {
       assertTrue(countResources(result, Encounter.class) > 0);
       assertTrue(countResources(result, Observation.class) > 0);
       assertTrue(countResources(result, Procedure.class) > 0);
+      assertTrue(countResources(result, Practitioner.class) > 0);
+      assertGeneratedResourceIdsAreWithinFhirLimit(result);
+
+      Group generatedPatients = findGeneratedPatientsGroup(result);
+      assertNotNull(generatedPatients);
+      assertEquals(requestedCount.intValue(), generatedPatients.getQuantity());
+   }
+
+   @Test
+   void cms347GeneratedPatientDataIncludesExpectedResources() throws IOException, NoSuchMethodException {
+      PatientDataGeneratorService service = new PatientDataGeneratorService(emptyDataProvider());
+      Integer requestedCount = 20;
+
+      Bundle result = service.generatePatientData(requestedCount, "CMS347");
+
+      assertEquals(requestedCount.longValue(), countResources(result, Patient.class));
+      assertTrue(countResources(result, Encounter.class) > 0);
+      assertTrue(countResources(result, Condition.class) > 0);
+      assertTrue(countResources(result, Observation.class) > 0);
+      assertTrue(countResources(result, MedicationRequest.class) > 0);
+      assertTrue(countResources(result, Procedure.class) > 0);
+      assertTrue(countResources(result, AllergyIntolerance.class) > 0);
+      assertTrue(countResources(result, AdverseEvent.class) > 0);
       assertTrue(countResources(result, Practitioner.class) > 0);
       assertGeneratedResourceIdsAreWithinFhirLimit(result);
 
