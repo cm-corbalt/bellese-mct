@@ -5,6 +5,8 @@ The MCT backend API has a `$generate-patient-data` operation that produces synth
 ## Currently supported measures:
 - CMS104: antithrombiotic treatment for ischemic stroke 
 - CMS122: A1c control for diabetes
+- CMS125: breast cancer screening
+- CMS347: statin therapy for prevention and treatment of cardiovascular disease
 
 ## Parameters
 
