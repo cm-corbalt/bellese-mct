@@ -5,6 +5,7 @@ import ca.uhn.fhir.rest.annotation.OperationParam;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.IntegerType;
 import org.hl7.fhir.r4.model.StringType;
+import org.opencds.cqf.mct.SpringContext;
 import org.opencds.cqf.mct.config.MctConstants;
 import org.opencds.cqf.mct.service.PatientDataGeneratorService;
 
@@ -14,6 +15,12 @@ import java.io.IOException;
  * The Generate Patient Data API.
  */
 public class GeneratePatientDataAPI {
+
+   private final PatientDataGeneratorService patientDataGeneratorService;
+
+   public GeneratePatientDataAPI(PatientDataGeneratorService patientDataGeneratorService) {
+      this.patientDataGeneratorService = patientDataGeneratorService;
+   }
 
    /**
     * Generate the patient data bundle.
@@ -31,6 +38,6 @@ public class GeneratePatientDataAPI {
    ) throws IOException, NoSuchMethodException {
       if (numTestCases == null) numTestCases = new IntegerType(200);
       if (measureRef == null) measureRef = new StringType("CMS104");
-      return new PatientDataGeneratorService().generatePatientData(numTestCases.getValue(), measureRef.getValue());
+      return patientDataGeneratorService.generatePatientData(numTestCases.getValue(), measureRef.getValue());
    }
 }

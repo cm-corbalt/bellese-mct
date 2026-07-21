@@ -43,6 +43,20 @@ class PatientDataGeneratorServiceTest {
    }
 
    @Test
+   void cms122GeneratedPatientCountMatchesRequestedCount() throws IOException, NoSuchMethodException {
+      PatientDataGeneratorService service = new PatientDataGeneratorService(emptyDataProvider());
+
+      for (Integer requestedCount : List.of(10, 11, 200, 201)) {
+         Bundle result = service.generatePatientData(requestedCount, "CMS122");
+
+         assertEquals(requestedCount.longValue(), countResources(result, Patient.class));
+         Group generatedPatients = findGeneratedPatientsGroup(result);
+         assertNotNull(generatedPatients);
+         assertEquals(requestedCount.intValue(), generatedPatients.getQuantity());
+      }
+   }
+
+   @Test
    void cms125GeneratedPatientDataIncludesExpectedResources() throws IOException, NoSuchMethodException {
       PatientDataGeneratorService service = new PatientDataGeneratorService(emptyDataProvider());
       Integer requestedCount = 20;

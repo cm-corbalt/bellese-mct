@@ -12,6 +12,7 @@ import org.opencds.cqf.mct.api.PatientSelectorAPI;
 import org.opencds.cqf.mct.api.ReceivingSystemConfigurationAPI;
 import org.opencds.cqf.mct.api.SubmitAPI;
 import org.opencds.cqf.mct.config.MctProperties;
+import org.opencds.cqf.mct.service.PatientDataGeneratorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.boot.SpringApplication;
@@ -55,15 +56,20 @@ public class MctApplication extends SpringBootServletInitializer {
 		return servletRegistrationBean;
 	}
 
+	@Bean GeneratePatientDataAPI generatePatientDataAPI(PatientDataGeneratorService patientDataGeneratorService) {
+      return new GeneratePatientDataAPI(patientDataGeneratorService);
+   }
+
+
 	@Bean
-	public RestfulServer restfulServer(FhirContext fhirContext, SpringContext springContext, CorsConfiguration corsConfiguration) {
+	public RestfulServer restfulServer(FhirContext fhirContext, SpringContext springContext, CorsConfiguration corsConfiguration, GeneratePatientDataAPI generatePatientDataAPI) {
 		RestfulServer fhirServer = new RestfulServer(fhirContext);
 		fhirServer.registerInterceptor(new CorsInterceptor(corsConfiguration));
 		fhirServer.registerProvider(new GatherAPI());
 		fhirServer.registerProvider(new FacilityRegistrationAPI());
 		fhirServer.registerProvider(new MeasureConfigurationAPI());
 		fhirServer.registerProvider(new ReceivingSystemConfigurationAPI());
-		fhirServer.registerProvider(new GeneratePatientDataAPI());
+		fhirServer.registerProvider(generatePatientDataAPI);
 		fhirServer.registerProvider(new PatientSelectorAPI());
 		fhirServer.registerProvider(new SubmitAPI());
 		fhirServer.registerInterceptor(new OpenApiInterceptor());
