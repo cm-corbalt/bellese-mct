@@ -27,9 +27,11 @@ import org.opencds.cqf.fhir.cr.measure.MeasureEvaluationOptions;
 import org.opencds.cqf.fhir.cr.measure.r4.R4MeasureProcessor;
 import org.opencds.cqf.fhir.utility.adapter.IAdapterFactory;
 import org.opencds.cqf.fhir.utility.repository.InMemoryFhirRepository;
+import org.opencds.cqf.mct.api.GeneratePatientDataAPI;
 import org.opencds.cqf.mct.service.FacilityRegistrationService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.opencds.cqf.mct.service.MeasureConfigurationService;
+import org.opencds.cqf.mct.service.PatientDataGeneratorService;
 import org.opencds.cqf.mct.service.PatientSelectorService;
 import org.opencds.cqf.mct.service.ReceivingSystemConfigurationService;
 import org.opencds.cqf.mct.validation.MctNpmPackageValidationSupport;
@@ -55,6 +57,11 @@ public class MctConfig {
    @Bean
    public ModelResolver modelResolver() {
       return new R4FhirModelResolver();
+   }
+
+   @Bean
+   public PatientDataGeneratorService patientDataGeneratorService(DataProvider dataProvider) {
+      return new PatientDataGeneratorService(dataProvider);
    }
 
    @Bean
